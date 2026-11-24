@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  /* Capacitor 8 injects --safe-area-inset-*; browsers use env() */
+  --sat: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+  --sab: max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px));
+  color-scheme: dark;
+}
+
+html, body {
+  background: #09090b;
+  font-family: 'Manrope Variable', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+button { cursor: pointer; user-select: none; -webkit-user-select: none; }
+
+input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* NumberFlow digits use the same font */
+number-flow-react { font-variant-numeric: tabular-nums; }
