@@ -21,6 +21,7 @@ jobs:
       - run: '[ -d android ] || npx cap add android'
       - run: npx cap sync android
       - run: npx --yes @capacitor/assets generate --android --iconBackgroundColor '#09090b' --iconBackgroundColorDark '#09090b' --splashBackgroundColor '#09090b' --splashBackgroundColorDark '#09090b'
+      - run: mkdir -p ~/.android && cp android/app/debug.keystore ~/.android/debug.keystore
       - run: chmod +x android/gradlew && cd android && ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
