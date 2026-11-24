@@ -40,6 +40,7 @@ export default function More() {
       <div className="mt-8 flex items-center justify-center gap-2 text-[12px] text-zinc-600">
         <ShieldCheck className="size-4" /> Your data stays on this phone only
       </div>
+      <p className="mt-2 text-center text-[12px] text-zinc-600">Powered by <span className="font-bold text-lime-300">Sahil</span></p>
     </>
   )
 }

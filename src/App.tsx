@@ -12,6 +12,7 @@ import Earn from '@/pages/Earn'
 import Invest from '@/pages/Invest'
 import More, { AutopayPage, AccountsPage, HeadsPage, DataPage } from '@/pages/More'
 import { closeTopSheet, ease } from '@/components/ui'
+import { Intro } from '@/components/Intro'
 import { isNative, tap } from '@/lib/native'
 import { cn } from '@/lib/utils'
 
@@ -98,6 +99,7 @@ function Shell() {
         </AnimatePresence>
       </main>
       <BottomNav />
+      <Intro />
       <Toaster theme="dark" position="top-center" offset={{ top: 'calc(var(--sat) + 12px)' }} mobileOffset={{ top: 'calc(var(--sat) + 12px)' }}
         toastOptions={{ className: '!rounded-2xl !border-white/10 !bg-zinc-900 !text-zinc-100 !font-[inherit]' }} />
     </div>
