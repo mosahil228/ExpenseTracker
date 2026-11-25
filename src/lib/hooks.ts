@@ -8,6 +8,8 @@ export const useHeads = () => useLiveQuery(() => db.heads.orderBy('order').toArr
 export const useSnapshots = () => useLiveQuery(() => db.snapshots.orderBy('date').toArray(), [])
 export const useEarnings = () => useLiveQuery(() => db.earnings.orderBy('date').toArray(), [])
 export const useInvestments = () => useLiveQuery(() => db.investments.orderBy('buyDate').reverse().toArray(), [])
+export const useContacts = () => useLiveQuery(() => db.contacts.orderBy('name').toArray(), [])
+export const useKhata = () => useLiveQuery(() => db.khata.toArray(), [])
 export const useAutopays = () => useLiveQuery(() => db.autopays.toArray(), [])
 
 /** month-end snapshots with all derived totals, oldest → newest */

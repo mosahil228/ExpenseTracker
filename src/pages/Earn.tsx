@@ -6,17 +6,19 @@ import { db, type Earning } from '@/db'
 import { PageHeader, Card, Fab, Sheet, Field, Input, Button, DeleteButton, Money, Delta, Empty, SectionLabel, Chips, listItem } from '@/components/ui'
 import { MonthBars } from '@/components/charts'
 import { useEarnings } from '@/lib/hooks'
-import { earningsByMonth } from '@/lib/calc'
+import { earningsByMonth, earningsByYear } from '@/lib/calc'
 import { inr, monthLabel, dayLabel, monthKey, todayISO, pctChange, num, str } from '@/lib/format'
 import { tap } from '@/lib/native'
 import { cn } from '@/lib/utils'
 
 const RANGES = ['6M', '12M', 'All'] as const
+const VIEWS = ['Monthly', 'Yearly'] as const
 
 export default function Earn() {
   const earnings = useEarnings()
   const [editing, setEditing] = useState<Earning | 'new' | null>(null)
   const [range, setRange] = useState<(typeof RANGES)[number]>('12M')
+  const [view, setView] = useState<(typeof VIEWS)[number]>('Monthly')
   const months = useMemo(() => earningsByMonth(earnings ?? []), [earnings])
   const current = monthKey(todayISO())
   const [selected, setSelected] = useState<string>(current)
@@ -57,6 +59,18 @@ export default function Earn() {
       </Card>
 
       {months.length > 0 && (
+        <div className="mt-4">
+          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-white/[0.04] p-1">
+            {VIEWS.map((v) => (
+              <button key={v} type="button" onClick={() => { tap(); setView(v) }} className={cn('relative h-10 rounded-xl text-[14px] font-semibold', view === v ? 'text-zinc-950' : 'text-zinc-400')}>
+                {view === v && <motion.span layoutId="earn-view" className="absolute inset-0 rounded-xl bg-lime-300" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
+                <span className="relative">{v}</span>
+              </button>
+            ))}
+          </div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={view} initial={{ opacity: 0, x: view === 'Yearly' ? 24 : -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: view === 'Yearly' ? -24 : 24 }} transition={{ duration: 0.22 }}>
+              {view === 'Yearly' ? <YearlyView earnings={earnings ?? []} /> : (
         <>
           <SectionLabel right={<div className="w-[170px]"><Chips options={RANGES} value={range} onChange={setRange} layoutId="range" /></div>}>By month</SectionLabel>
           <Card className="px-2 pb-1">
@@ -91,6 +105,10 @@ export default function Earn() {
             ))}
           </Card>
         </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       )}
 
       <SectionLabel right={<span className="text-[13px] font-semibold tabular-nums text-lime-300">{inr(selectedTotal)}</span>}>Daily</SectionLabel>
@@ -182,5 +200,56 @@ function EarningSheet({ earning, earnings, onClose }: { earning: Earning | null;
       <Field label="Note"><Input value={note} placeholder="Optional" onChange={(e) => setNote(e.target.value)} /></Field>
       <p className="px-1 text-[12px] text-zinc-600">Tip: for an old month you only know the total of, add one entry dated in that month.</p>
     </Sheet>
+  )
+}
+
+function YearlyView({ earnings }: { earnings: Earning[] }) {
+  const years = useMemo(() => earningsByYear(earnings), [earnings])
+  const best = years.reduce<(typeof years)[number] | null>((b, y) => (!b || y.total > b.total ? y : b), null)
+  const thisYear = todayISO().slice(0, 4)
+  const current = years.find((y) => y.year === thisYear)
+  const last = years.find((y) => y.year === String(Number(thisYear) - 1))
+  return (
+    <>
+      <SectionLabel>By year</SectionLabel>
+      <Card className="px-2 pb-1">
+        <MonthBars data={years.map((y) => ({ key: y.year, label: y.year, total: y.total }))} highlight={best?.year} height={220} />
+      </Card>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <Card delay={0.05}>
+          <Trophy className="size-5 text-lime-300" />
+          <div className="mt-2 text-[12px] text-zinc-500">Best year</div>
+          <div className="text-[17px] font-bold">{best?.year ?? '—'}</div>
+          <div className="text-[13px] font-semibold tabular-nums text-lime-300">{best ? inr(best.total) : ''}</div>
+        </Card>
+        <Card delay={0.1}>
+          <Sparkles className="size-5 text-sky-300" />
+          <div className="mt-2 text-[12px] text-zinc-500">{thisYear} so far</div>
+          <Money value={current?.total ?? 0} className="block text-[17px] font-bold" />
+          {last && <Delta value={pctChange(current?.total ?? 0, last.total)} className="mt-0.5" />}
+        </Card>
+      </div>
+      <SectionLabel>Every year</SectionLabel>
+      <Card className="space-y-3">
+        {[...years].reverse().map((y, i, arr) => {
+          const prev = arr[i + 1]
+          return (
+            <div key={y.year} className="flex items-center gap-3">
+              <span className={cn('w-12 text-[15px] font-bold', y.year === best?.year && 'text-lime-300')}>{y.year}</span>
+              <div className="min-w-0 flex-1">
+                <div className="h-2 overflow-hidden rounded-full bg-white/[0.05]">
+                  <motion.div className={cn('h-full rounded-full', y.year === best?.year ? 'bg-lime-300' : 'bg-zinc-500')} initial={{ width: 0 }} animate={{ width: `${(y.total / (best?.total || 1)) * 100}%` }} transition={{ duration: 0.8, delay: i * 0.06 }} />
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-500">{y.months} {y.months === 1 ? 'month' : 'months'} · avg {inr(y.total / y.months)}/month</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[14px] font-semibold tabular-nums">{inr(y.total)}</div>
+                {prev && <Delta value={pctChange(y.total, prev.total)} className="mt-0.5" />}
+              </div>
+            </div>
+          )
+        })}
+      </Card>
+    </>
   )
 }

@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { db, ALL_TABLES, DEFAULT_ACCOUNTS, DEFAULT_HEADS, type Snapshot, type Earning, type Investment } from '@/db'
-import { withTotals, earningsByMonth, investmentProfit } from './calc'
+import { withTotals, earningsByMonth, earningsByYear, investmentProfit, khataBalance } from './calc'
 import { monthLabel, todayISO } from './format'
 import { saveFile, textToBase64 } from './native'
 import { format, subMonths, addDays, parseISO, startOfMonth } from 'date-fns'
@@ -8,6 +8,7 @@ import { format, subMonths, addDays, parseISO, startOfMonth } from 'date-fns'
 /* ---------------- Excel export (your sheet, rebuilt) ---------------- */
 
 export async function exportExcel() {
+  const [contacts, khata] = await Promise.all([db.contacts.orderBy('name').toArray(), db.khata.orderBy('date').toArray()])
   const [accounts, heads, snaps, earnings, invs, autopays] = await Promise.all([
     db.accounts.orderBy('order').toArray(),
     db.heads.orderBy('order').toArray(),
@@ -54,6 +55,16 @@ export async function exportExcel() {
       }
     }),
   )
+  add('Yearly Earnings', earningsByYear(earnings).map((y) => ({ YEAR: y.year, TOTAL: y.total, MONTHS: y.months })))
+  add(
+    'Khata Summary',
+    contacts.map((c) => {
+      const b = khataBalance(khata.filter((k) => k.contactId === c.id))
+      return { NAME: c.name, PHONE: c.phone ?? '', SENT: b.sent, RECEIVED: b.received, BALANCE: b.balance, STATUS: b.balance > 0 ? 'You will get' : b.balance < 0 ? 'You will give' : 'Settled' }
+    }),
+  )
+  const names = new Map(contacts.map((c) => [c.id, c.name]))
+  add('Khata Entries', khata.map((k) => ({ NAME: names.get(k.contactId) ?? '?', DATE: k.date, TYPE: k.type === 'send' ? 'Sent' : 'Received', AMOUNT: k.amount, NOTE: k.note || '' })))
   add('Auto Pay', autopays.map((a) => ({ NAME: a.name, AMOUNT: a.amount, DAY: a.day ?? '', ACTIVE: a.active ? 'Yes' : 'No' })))
   const b64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' }) as string
   await saveFile(`money-tracker-${todayISO()}.xlsx`, b64, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -73,8 +84,9 @@ export async function restoreBackup(file: File) {
   if (parsed?.app !== 'money-tracker' || !parsed.data) throw new Error('This is not a Money Tracker backup file')
   await db.transaction('rw', db.tables, async () => {
     for (const t of ALL_TABLES) {
+      if (!Array.isArray(parsed.data[t])) continue // older backup without this table → keep what's on the phone
       await db.table(t).clear()
-      if (Array.isArray(parsed.data[t])) await db.table(t).bulkPut(parsed.data[t])
+      await db.table(t).bulkPut(parsed.data[t])
     }
   })
 }
@@ -151,6 +163,17 @@ export async function loadSampleData() {
       { type: 'Gold', name: 'Gold 24K', qty: 10, unit: 'g', buyDate: '2025-12-02', buyAmount: 128000, sold: true, sellDate: '2026-08-20', sellAmount: 141200 },
     ]
     await db.investments.bulkAdd(invs)
+    const [rahul, amit] = (await db.contacts.bulkAdd([
+      { name: 'Rahul Sharma', phone: '9876543210', createdAt: '2026-09-01' },
+      { name: 'Amit Kumar', createdAt: '2026-10-10' },
+    ], { allKeys: true })) as number[]
+    await db.khata.bulkAdd([
+      { contactId: rahul, type: 'send', amount: 25000, date: '2026-09-04', note: 'Loan for bike repair', createdAt: 1 },
+      { contactId: rahul, type: 'receive', amount: 10000, date: '2026-10-02', note: 'UPI', createdAt: 2 },
+      { contactId: rahul, type: 'receive', amount: 5000, date: '2026-11-01', note: 'Cash', createdAt: 3 },
+      { contactId: amit, type: 'receive', amount: 8000, date: '2026-10-12', note: 'Advance for shop goods', createdAt: 4 },
+      { contactId: amit, type: 'send', amount: 3000, date: '2026-11-15', createdAt: 5 },
+    ])
     await db.autopays.bulkAdd([
       { name: 'Telegram', amount: 319, day: 5, active: true },
       { name: 'ChatGPT', amount: 399, day: 12, active: false },

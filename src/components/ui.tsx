@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type InputHTMLAttributes } from 'react'
+import { createPortal } from 'react-dom'
 import { Drawer } from 'vaul'
 import { motion, AnimatePresence } from 'motion/react'
 import NumberFlow from '@number-flow/react'
@@ -89,20 +90,51 @@ export function Button({ children, onClick, variant = 'primary', className, disa
   )
 }
 
+/** Hides while you scroll down (so it never covers content), returns when you scroll up or reach the top. */
+function useScrollHidden() {
+  const [hidden, setHidden] = useState(false)
+  useEffect(() => {
+    let last = window.scrollY
+    let ticking = false
+    const onScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const y = window.scrollY
+        const atBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 8
+        if (y < 40) setHidden(false)
+        else if (atBottom || y > last + 6) setHidden(true)
+        else if (y < last - 6) setHidden(false)
+        last = y
+        ticking = false
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  return hidden
+}
+
 export function Fab({ onClick, label = 'Add' }: { onClick: () => void; label?: string }) {
-  return (
+  const hidden = useScrollHidden()
+  // portal: keeps the button pinned to the screen, not to the animated page
+  return createPortal(
     <motion.button
       aria-label={label}
       initial={{ scale: 0, rotate: -90 }}
-      animate={{ scale: 1, rotate: 0 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 22, delay: 0.15 }}
+      animate={hidden ? { scale: 0.6, opacity: 0, y: 40, rotate: 0 } : { scale: 1, opacity: 1, y: 0, rotate: 0 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 26 }}
       whileTap={{ scale: 0.88 }}
       onClick={() => { tap('medium'); onClick() }}
-      className="fixed right-5 z-30 grid size-14 place-items-center rounded-[20px] bg-lime-300 text-zinc-950 shadow-[0_10px_40px_-8px_rgba(190,242,100,0.55)]"
+      className={cn(
+        'fixed right-5 z-30 grid size-14 place-items-center rounded-[20px] bg-lime-300/90 text-zinc-950 shadow-[0_10px_40px_-8px_rgba(190,242,100,0.55)] backdrop-blur',
+        hidden && 'pointer-events-none',
+      )}
       style={{ bottom: 'calc(var(--sab) + 96px)' }}
     >
       <Plus className="size-6" strokeWidth={2.6} />
-    </motion.button>
+    </motion.button>,
+    document.body,
   )
 }
 

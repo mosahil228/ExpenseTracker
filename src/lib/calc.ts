@@ -1,4 +1,4 @@
-import type { Account, ExpenseHead, Investment, Snapshot, Earning } from '@/db'
+import type { Account, ExpenseHead, Investment, Snapshot, Earning, KhataEntry } from '@/db'
 import { monthKey } from './format'
 
 export function snapshotTotals(s: Snapshot, accounts: Account[], heads: ExpenseHead[]) {
@@ -20,6 +20,25 @@ export function earningsByMonth(earnings: Earning[]) {
   const map = new Map<string, number>()
   for (const e of earnings) map.set(monthKey(e.date), (map.get(monthKey(e.date)) || 0) + e.amount)
   return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, total]) => ({ month, total }))
+}
+
+export function earningsByYear(earnings: Earning[]) {
+  const map = new Map<string, { total: number; months: Set<string> }>()
+  for (const e of earnings) {
+    const y = e.date.slice(0, 4)
+    const cur = map.get(y) ?? { total: 0, months: new Set<string>() }
+    cur.total += e.amount
+    cur.months.add(e.date.slice(0, 7))
+    map.set(y, cur)
+  }
+  return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([year, v]) => ({ year, total: v.total, months: v.months.size }))
+}
+
+export function khataBalance(entries: KhataEntry[]) {
+  let sent = 0
+  let received = 0
+  for (const e of entries) e.type === 'send' ? (sent += e.amount) : (received += e.amount)
+  return { sent, received, balance: sent - received } // > 0 → you will get
 }
 
 export function investmentStats(list: Investment[]) {

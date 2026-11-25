@@ -64,7 +64,27 @@ export interface AutoPay {
   active: boolean
 }
 
+/** Khata: a person you send money to / receive money from */
+export interface Contact {
+  id?: number
+  name: string
+  phone?: string
+  createdAt: string
+}
+
+export interface KhataEntry {
+  id?: number
+  contactId: number
+  type: 'send' | 'receive'
+  amount: number
+  date: string // YYYY-MM-DD
+  note?: string
+  createdAt: number
+}
+
 export const db = new Dexie('money-tracker') as Dexie & {
+  contacts: EntityTable<Contact, 'id'>
+  khata: EntityTable<KhataEntry, 'id'>
   accounts: EntityTable<Account, 'id'>
   heads: EntityTable<ExpenseHead, 'id'>
   snapshots: EntityTable<Snapshot, 'id'>
@@ -80,6 +100,12 @@ db.version(1).stores({
   earnings: '++id, date',
   investments: '++id, type, buyDate',
   autopays: '++id',
+})
+
+// v2 only ADDS tables — everything saved in v1 stays untouched
+db.version(2).stores({
+  contacts: '++id, name',
+  khata: '++id, contactId, date',
 })
 
 export const DEFAULT_ACCOUNTS: Account[] = [
@@ -103,7 +129,7 @@ db.on('populate', (tx) => {
   tx.table('heads').bulkAdd(DEFAULT_HEADS)
 })
 
-export const ALL_TABLES = ['accounts', 'heads', 'snapshots', 'earnings', 'investments', 'autopays'] as const
+export const ALL_TABLES = ['accounts', 'heads', 'snapshots', 'earnings', 'investments', 'autopays', 'contacts', 'khata'] as const
 
 export async function eraseAll(keepDefaults = true) {
   await db.transaction('rw', db.tables, async () => {

@@ -50,7 +50,7 @@ export function MonthBars({ data, highlight, height = 200 }: { data: { label: st
         <XAxis dataKey="label" tick={axis} axisLine={false} tickLine={false} interval={0} fontSize={10} />
         <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={compact} width={50} />
         <Tooltip content={<Tip />} cursor={{ fill: 'rgba(255,255,255,0.04)', radius: 8 }} />
-        <Bar dataKey="total" name="Earned" radius={[8, 8, 8, 8]} animationDuration={900}>
+        <Bar dataKey="total" name="Earned" radius={[8, 8, 8, 8]} maxBarSize={56} animationDuration={900}>
           {data.map((d) => (
             <Cell key={d.key} fill={d.key === highlight ? '#bef264' : '#3f3f46'} />
           ))}
